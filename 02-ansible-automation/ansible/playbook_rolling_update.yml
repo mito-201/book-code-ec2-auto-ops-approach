@@ -1,0 +1,51 @@
+---
+- name: "Rolling Update: Install Git on EC2 instances behind ALB"
+  hosts: app_servers
+  serial: 1
+
+  vars:
+    ## ★ 作成したALBのARNに置き換えてください
+    alb_target_group_arn: "arn:aws:elasticloadbalancing:us-west-2:******"
+
+  tasks:
+    # ALBターゲットグループから現在のホストを登録解除する (localhostで実行)
+    - name: Remove instance from ALB targets
+      delegate_to: localhost # localhostで実行
+      community.aws.elb_target:
+        target_group_arn: "{{ alb_target_group_arn }}"
+        target_id: "{{ ansible_host }}"
+        state: absent
+        target_status: unused # ターゲットグループに未登録の状態
+        target_status_timeout: 600
+      environment: # タスク実行時の環境変数を設定
+        AWS_PROFILE: "{{ ansible_aws_ssm_profile }}"
+        AWS_DEFAULT_REGION: "{{ ansible_aws_ssm_region }}"
+
+    # Gitをインストールする (ターゲットホストで実行)
+    - name: Git is installed
+      ansible.builtin.dnf:
+        name: git
+        state: latest
+      become: true
+
+    - name: Execute git --version command
+      ansible.builtin.command:
+        cmd: "git --version"
+      register: git_version_output
+
+    - name: Display Git version
+      ansible.builtin.debug:
+        msg: "Git version : {{ git_version_output.stdout }}"
+
+    # ALBターゲットグループに現在のホストを再登録する（localhostで実行）
+    - name: Register instance from ALB targets
+      delegate_to: localhost # localhostで実行
+      community.aws.elb_target:
+        target_group_arn: "{{ alb_target_group_arn }}"
+        target_id: "{{ ansible_host }}"
+        state: present
+        target_status: healthy
+        target_status_timeout: 60 # デフォルト
+      environment:
+        AWS_PROFILE: "{{ ansible_aws_ssm_profile }}"
+        AWS_DEFAULT_REGION: "{{ ansible_aws_ssm_region }}"

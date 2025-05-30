@@ -1,0 +1,22 @@
+---
+- name: Install Git on target hosts
+  # ターゲットホストまたはグループを指定
+  hosts: all
+  # root権限 (sudo) で実行するため
+  become: yes
+
+  tasks:
+    - name: Git is installed
+      ansible.builtin.dnf:
+        name: git
+        # 'latest' は最新バージョンのパッケージをインストールする
+        state: latest
+
+    - name: Execute git --version command
+      ansible.builtin.command:
+        cmd: "git --version"
+      register: git_version_output
+
+    - name: Display Git version
+      ansible.builtin.debug:
+        msg: "Git version : {{ git_version_output.stdout }}"
