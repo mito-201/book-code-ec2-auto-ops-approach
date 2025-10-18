@@ -1,6 +1,6 @@
 variable "region" {
   type    = string
-  default = "<resion>" # 任意のリージョンを指定
+  default = "<region>" # 任意のリージョンを指定
 }
 
 variable "name_prefix" {
